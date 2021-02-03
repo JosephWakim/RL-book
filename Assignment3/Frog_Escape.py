@@ -25,6 +25,9 @@ from typing import (Mapping, Dict, Optional, Tuple, List)
 import itertools
 
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import pandas as pd
 
 from rl.distribution import (Constant, Categorical, FiniteDistribution)
 import rl.markov_process as mp
@@ -167,24 +170,17 @@ class FrogProblemMDP(mdp.FiniteMarkovDecisionProcess[mdp.S, mdp.A]):
             return 1 / self.river.n_lily
 
     def reward_at_position(self, next_position: int) -> float:
-        """Get the reward associated with the position.
+        """Get the reward for each position.
 
         We are not concerned with how many hops it takes to savely cross the
         river. We are only concerned with maximizing the probability of a
-        successful passage. Therefore, assign position zero (the losing 
-        position) with a negative reward, position `self.river.n_lily` (the
-        winning position) with a positive reward, and all other positions with
-        a reward of zero.
-
-        Recall that rewards are assigned based on the next position, not the
-        current state.
+        successful passage. Therefore, assign a reward of 1 for transitions
+        to the winning position and a reward of 0 at all other transitions.
 
         :param next_position: Lily pad position in river after hop.
         :returns: Reward associated with transition to `next_position`.
         """
-        if next_position == 0:
-            return -1
-        elif next_position == self.river.n_lily:
+        if next_position == self.river.n_lily:
             return 1
         else:
             return 0
@@ -225,7 +221,7 @@ class FrogProblemMDP(mdp.FiniteMarkovDecisionProcess[mdp.S, mdp.A]):
         return [
             mdp.FinitePolicy(
                 {FrogState(i) : Constant(policy[i]) \
-                    for i in range(self.river.n_lily)}
+                    for i in range(1, self.river.n_lily)}
             ) for policy in policy_combos
         ]
 
@@ -269,46 +265,136 @@ def get_optimal_policy(
     :param val_functs: (N, M) array containing evaluations of N value functions
         associated with N policy implied Markov reward processes at each of M 
         state.
+    :returns: Optimal policy
     """
-    remaining_policies = policies
-    
+    ind_max = []
     for i in range(val_functs.shape[1]):
-        max_val = max(np.unique(val_functs[:,i]))
+        for j in range(len(val_functs[:, i])):
+            if val_functs[j,i] == max(val_functs[:,i]):
+                ind_max.append(j)
+    ind_opt = max(set(ind_max), key=ind_max.count)
+    return policies[ind_opt]
 
-        for j in range(len(remaining_policies)-1, -1, -1):
-            # Increment downward to allow filtering
-            if val_functs[j, i] != max_val:
-                remaining_policies.pop(j)
-    
-    print("Num. optimal policies: "+str(len(remaining_policies)))
-    return remaining_policies
+
+def get_croak_seq_from_policy(policy: mdp.FinitePolicy) -> Dict[int, bool]:
+    """Obtain deterministic croak types at each state given a policy.
+
+    When representing croak types, `True` indicates croak type A and `False`
+    indicates type B. This function parses a mapping of `FrogStates` to
+    deterministic croak types and returns a mapping of croak positions to
+    the boolean croak A type indicators.
+
+    Use this function when color-coding plots based on actions encoded in
+    a policy.
+
+    :param policy: Deterministic policy of croak actions
+    :returns: Mapping of frog positions to boolean croak A indicators
+    """
+    states = list(policy.policy_map.keys())
+    positions = [state.position for state in states]
+    actions = [
+        croak_A for dist in [
+            dists.table().keys() for dists in list(policy.policy_map.values())
+        ] for croak_A in dist
+    ]
+    positions.insert(0, 0)
+    positions.append(len(positions))
+    actions.insert(0, None)
+    actions.append(None)
+    return {positions[i] : actions[i] for i in range(len(positions))}
+
+
+def plot_escape_probability(
+    frog_MDP: mdp.FiniteMarkovDecisionProcess[FrogState, Croak],
+    policy: mdp.FinitePolicy,
+    n: int
+):
+    """Plot the escape probabilities at each state of the MDP.
+
+    A reward of 1 was specified for the winning transition, and all other
+    transitions were assigned a reward of 0. With a discount factor of 1, the
+    value function at each position gives the probability of successfully
+    escaping the river. Therefore, to plot escape probabilities, plot the value
+    function at each position.
+
+    :param frog_MDP: Markov Decision Process representing the `Frog Escape 
+        Problem`
+    :param policy: Deterministic policy of croak actions
+    :param n: Number of lily pads in the river
+    """
+    # Load Data
+    croak_actions = get_croak_seq_from_policy(policy)
+    escape_probabilities = get_policy_val_funct(frog_MDP, policy).tolist()
+    # Add trivial escape probabilities at starting and ending positions
+    escape_probabilities.insert(0, 0)
+    escape_probabilities.append(1)
+    df = pd.DataFrame(
+        dict(
+            position=list(croak_actions.keys()),
+            esc_prob=escape_probabilities,
+            croak=list(croak_actions.values())
+        )
+    )
+
+    # Generate plot
+    colors = {True: 'blue', False: 'red', None: 'black'}
+    fig, ax = plt.subplots()
+    ax.scatter(
+        x=df["position"],
+        y=df["esc_prob"], 
+        c=df["croak"].map(colors)
+    )
+    croak_A = mpatches.Patch(color='blue', label='croak A')
+    croak_B = mpatches.Patch(color='red', label='croak B')
+    no_croak = mpatches.Patch(color='black', label='no croak')
+    ax.legend(handles=[croak_A, croak_B, no_croak], loc="lower right")
+    ax.set_xticks(np.arange(0, n+1, 1))
+    ax.set_ylim((0, 1))
+    ax.set_yticks(np.arange(0, 1, 0.25))
+    ax.set_ylabel("Escape probability")
+    ax.set_xlabel("Lily pad position")
+    ax.set_title("Frog Escape Outcomes, n = " + str(n))
+    plt.savefig(
+        "Frog_Escape_Outcomes_n_"+str(n)+".png",
+        dpi=600
+    )
+
+
+def solve_frog_escape_problem(n: int):
+    """Solve the 'frog escape problem' for a given river size
+
+    Find the optimal deterministic policy of A/B croaks based on position in
+    the river, and plot the escape probability associated with each position
+    using the policy.
+
+    :param n: Number of lily pads in the river, where lily pad `n` is the
+    winning position.
+    """
+    # Define the size of the river in the problem
+    n_lily: int = n
+    # Specify the river
+    river: River = River(n_lily)
+    # Instantiate the MDP representation of the `Frog Escape` problem
+    frog_MDP: mdp.FiniteMarkovDecisionProcess[FrogState, Croak] =\
+        FrogProblemMDP(river)
+    # Determine all possible policies
+    policies: List[mdp.FinitePolicy] = frog_MDP.get_determ_policies()
+    # Get value functions associated with all possible policies
+    val_functs: np.ndarray = np.array(
+        [get_policy_val_funct(frog_MDP, policy) for policy in policies]
+    )
+    # Get the optimal policy
+    opt_policy: mdp.FinitePolicy = get_optimal_policy(policies, val_functs)
+    # Plot the escape probabilities
+    plot_escape_probability(frog_MDP, opt_policy, n_lily)
 
 
 def main():
     """Evaluate policies to determine optimal policy.
     """
-    # Define the size of the river in the problem
-    n_lily: int = 10
-    
-    # Specify the river
-    river: River = River(n_lily)
-    
-    # Instantiate the MDP representation of the `Frog Escape` problem
-    frog_MDP: mdp.FiniteMarkovDecisionProcess[FrogState, Croak] =\
-        FrogProblemMDP(river)
-    
-    # Determine all possible policies
-    policies: List[mdp.FinitePolicy] = frog_MDP.get_determ_policies()
-    
-    # Get value functions associated with all possible policies
-    val_functs: np.ndarray = np.array(
-        [get_policy_val_funct(frog_MDP, policy) for policy in policies]
-    )
-    
-    # Get the optimal policy
-    opt_policies: List[mdp.FinitePolicy] = get_optimal_policy(
-        policies, val_functs
-    )
+    river_sizes = [3, 6, 9]
+    for river_size in river_sizes:
+        solve_frog_escape_problem(river_size)
 
 
 if __name__ == "__main__":
