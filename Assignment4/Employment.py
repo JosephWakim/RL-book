@@ -37,6 +37,7 @@ from rl.distribution import (Constant, Categorical, FiniteDistribution)
 import rl.markov_process as mp
 import rl.markov_decision_process as mdp
 import rl.markov_process as mp
+import Assignment4.Wakim_DP as wak_DP
 
 
 @dataclass(frozen=True)
@@ -150,6 +151,7 @@ class EmploymentMDP(mdp.FiniteMarkovDecisionProcess[mdp.S, mdp.A]):
 def main():
     """Evaluate the employment scenario.
     """
+    gamma = 0.95
     # Specify salaries
     job_salaries: Dict[int, float] = {
         0: 5,   # Unemployment
@@ -168,6 +170,17 @@ def main():
     # generate MDP
     market: Market = Market(job_salaries, job_prob, alpha)
     employment_mdp: EmploymentMDP[JobState, Accept] = EmploymentMDP(market)
+    # Get optimal policy by policy iteration
+    opt_vf_policy: Tuple[mdp.V[mdp.S], mdp.FinitePolicy] =\
+        wak_DP.policy_iteration(
+            mdp=employment_mdp,
+            gamma=gamma,
+            tolerance=1e-5,
+            max_iters=1000
+        )
+
+    opt_vf, opt_pi = opt_vf_policy
+    print(opt_pi)
 
 
 if __name__ == "__main__":
