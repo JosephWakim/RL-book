@@ -61,6 +61,7 @@ class VampireMDP(mdp.FiniteMarkovDecisionProcess[mdp.S, mdp.A]):
         # Specify terminal state transition probabilies
         for i in range(self.init_pop+1):
             d[State(i, False)] = None
+        d[State(0, True)] = None
 
         # Specify non-terminal state transition probabilities
         for i in range(1, self.init_pop+1):
