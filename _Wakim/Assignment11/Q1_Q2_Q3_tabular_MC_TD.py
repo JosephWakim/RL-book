@@ -66,6 +66,8 @@ def tabular_mc_prediction(
                 reverse_returns_from_state[i-1] + reverse_returns_from_state[i]
         returns_from_state = reverse_returns_from_state
         returns_from_state.reverse()
+        
+        # TODO: This is overwriting values at repeated states
         returns_from_state_dict = {
             episode[i].state: returns_from_state[i]
             for i in range(len(episode))
@@ -143,16 +145,16 @@ def main():
     # Apply Tabular MC prediction to approximate optimal value function
     vampire_mrp: mp.FiniteMarkovRewardProcess[S] =\
         vampire_mdp.apply_finite_policy(pi)
-    num_traces = 10000
+    num_traces = 1000000
     traces = get_traces(vampire_mrp, start_state_dist, num_traces)
     pred_val_mc = tabular_mc_prediction(traces, 1)
-    print("Predicted optimal value function by MC prediction: ")
+    print("Predicted value function by MC prediction: ")
     pprint(pred_val_mc)
 
     # Apply Tabular TD prediction to approximate optimal value function
     atomic_experiences = [step for trace in traces for step in trace]
-    pred_val_td = tabular_td_prediction(atomic_experiences, 0.05, 1)
-    print("Predicted optimal value function by TD prediction: ")
+    pred_val_td = tabular_td_prediction(atomic_experiences, 0.0001, 1)
+    print("Predicted value function by TD prediction: ")
     pprint(pred_val_td)
 
 
