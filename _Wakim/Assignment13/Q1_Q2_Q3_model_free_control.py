@@ -1,7 +1,9 @@
 """
 Implementation of Control algorithms.
 
-    - Implementing Tabular MC Control - GLIE
+    - Implement Tabular MC Control - GLIE
+    - Implement Tabular SARSA
+    - Implement Tabular Q-learning
 
 Joseph Wakim
 CME 241 - Assignment 13, Problems 1-4
