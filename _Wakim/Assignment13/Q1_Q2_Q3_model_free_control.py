@@ -6,7 +6,7 @@ Implementation of Control algorithms.
     - Implement Tabular Q-learning
 
 Joseph Wakim
-CME 241 - Assignment 13, Problems 1-4
+CME 241 - Assignment 13, Problems 1-3
 March 6, 2021
 """
 
