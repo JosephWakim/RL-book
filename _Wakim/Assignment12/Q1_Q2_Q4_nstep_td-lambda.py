@@ -15,7 +15,7 @@ import rl.markov_decision_process as mdp
 import rl.distribution as dist
 import rl.dynamic_programming as dp
 import _Wakim.Extra_Practice.Vampire as vampire
-from _Wakim.Assignment11.Q123_Tabular_MC_TD import get_traces
+from _Wakim.Assignment11.Q1_Q2_Q3_tabular_MC_TD import get_traces
 
 
 S = TypeVar('S')
@@ -151,14 +151,14 @@ def tabular_TD_lambda(
     :returns: Predicted value associated with each state
     :returns: Convergence of VF after each iteration
     """
-    # Initialize eligibility trace and value function at each position
-    eligibility: Dict[S, float] = defaultdict(def_value)
+    # Initialize value function at each position
     val_func: V[S] = defaultdict(def_value)
     vf_convergence = []
     num_iter: int = 0
 
     # Loop through each atomic experience in the trace
     for episode in traces:
+        eligibility: Dict[S, float] = defaultdict(def_value)
         for step in episode:
             num_iter += 1
             alpha = learning_rate(num_iter)

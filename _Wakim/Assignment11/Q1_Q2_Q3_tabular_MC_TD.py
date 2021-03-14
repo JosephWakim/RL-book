@@ -66,7 +66,7 @@ def tabular_mc_prediction(
                 reverse_returns_from_state[i-1] + reverse_returns_from_state[i]
         returns_from_state = reverse_returns_from_state
         returns_from_state.reverse()
-        
+
         # TODO: This is overwriting values at repeated states
         returns_from_state_dict = {
             episode[i].state: returns_from_state[i]
