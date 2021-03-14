@@ -219,7 +219,7 @@ def policy_from_q(
             if explore.sample():
                 return Choose(set(mdp.actions(s)))
 
-            _, action = q.argmax((s, a) for a in mdp.actions(s))
+            _, action = q.argmax([(s, a) for a in mdp.actions(s)])
             return Constant(action)
 
     return QPolicy()
