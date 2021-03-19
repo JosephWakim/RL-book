@@ -31,7 +31,7 @@ class AssetAllocPolicy(mdp.Policy[S, A]):
 
     def __init__(
         self,
-        action_func: Callable[[S], Sequence[A]],
+        action_func: Callable[[S], Sequence[A], float],
         feature_funcs: Sequence[Callable[[S, A], float]],
         weights: np.ndarray
     ):
